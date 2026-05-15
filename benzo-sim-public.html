@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BenzoTaper Sim — Patient Simulation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c26;
+    --surface2: #1f2435;
+    --border: #2a3045;
+    --accent: #4a9eff;
+    --accent2: #7c5cbf;
+    --warn: #e8a030;
+    --danger: #e05050;
+    --success: #3db87a;
+    --text: #d8dce8;
+    --text-dim: #7a82a0;
+    --text-bright: #f0f2ff;
+    --patient-bg: #1a1f30;
+    --patient-accent: #6b9fd4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 14px; }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--text-bright);
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: rgba(74,158,255,0.12);
+    border: 1px solid rgba(74,158,255,0.3);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3a8eef; color: #fff; border-color: #3a8eef; }
+  .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+
+  .app {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 57px);
+  }
+
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-section h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .patient-card {
+    background: var(--patient-bg);
+    border: 1px solid rgba(107,159,212,0.25);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .patient-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+
+  .patient-meta { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 12px; }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 0.75rem;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--text-dim); flex-shrink: 0; }
+  .info-value { color: var(--text); text-align: right; font-weight: 500; }
+  .info-value.warn { color: var(--warn); }
+  .info-value.danger { color: var(--danger); }
+
+  .objectives-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .objectives-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  .obj-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  .score-display {
+    text-align: center;
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .score-label { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px; }
+  .score-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .chat-header {
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .chat-status { display: flex; align-items: center; gap: 10px; }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-text { font-size: 0.8rem; color: var(--text-dim); }
+
+  .turn-counter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    animation: fadeUp 0.25s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.patient { align-self: flex-start; }
+  .message.resident { align-self: flex-end; }
+  .message.system { align-self: center; max-width: 90%; }
+
+  .msg-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    padding: 0 4px;
+  }
+  .message.patient .msg-label { color: var(--patient-accent); }
+  .message.resident .msg-label { color: var(--accent); text-align: right; }
+
+  .msg-bubble {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .message.patient .msg-bubble {
+    background: var(--patient-bg);
+    border: 1px solid rgba(107,159,212,0.2);
+    border-bottom-left-radius: 3px;
+  }
+  .message.resident .msg-bubble {
+    background: rgba(74,158,255,0.1);
+    border: 1px solid rgba(74,158,255,0.2);
+    border-bottom-right-radius: 3px;
+  }
+  .message.system .msg-bubble {
+    background: rgba(232,160,48,0.08);
+    border: 1px solid rgba(232,160,48,0.2);
+    border-radius: 8px;
+    color: var(--warn);
+    font-size: 0.8rem;
+    text-align: center;
+    width: 100%;
+  }
+
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 16px;
+    background: var(--patient-bg);
+    border: 1px solid rgba(107,159,212,0.2);
+    border-radius: 10px;
+    border-bottom-left-radius: 3px;
+    width: fit-content;
+  }
+  .typing-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--patient-accent);
+    animation: typing 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: 0.2; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1); }
+  }
+
+  .input-area {
+    padding: 16px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .input-wrap { display: flex; gap: 10px; align-items: flex-end; }
+
+  textarea {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.875rem;
+    padding: 12px 14px;
+    resize: none;
+    min-height: 48px;
+    max-height: 140px;
+    outline: none;
+    transition: border-color 0.18s;
+    line-height: 1.5;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--text-dim); }
+  textarea:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .send-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    width: 44px; height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    flex-shrink: 0;
+    transition: all 0.18s;
+  }
+  .send-btn:hover { background: #3a8eef; transform: scale(1.05); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .input-hint {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .feedback-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .feedback-overlay.show { display: flex; }
+
+  .feedback-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 760px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+  }
+
+  .feedback-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+  .feedback-subtitle { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 24px; }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .score-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .score-card-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .score-card-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 500;
+  }
+  .score-card-value.excellent { color: var(--success); }
+  .score-card-value.good { color: var(--accent); }
+  .score-card-value.fair { color: var(--warn); }
+  .score-card-value.poor { color: var(--danger); }
+
+  .feedback-section { margin-bottom: 20px; }
+  .feedback-section h4 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .feedback-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .feedback-item-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 2px; }
+  .feedback-text { color: var(--text); }
+  .feedback-text strong { color: var(--text-bright); }
+
+  .asam-box {
+    background: rgba(74,158,255,0.06);
+    border: 1px solid rgba(74,158,255,0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+  .asam-box strong { color: var(--accent); }
+
+  .feedback-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    justify-content: flex-end;
+  }
+
+  .welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 40px 20px;
+    gap: 12px;
+  }
+  .welcome-icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .welcome h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    color: var(--text-bright);
+  }
+  .welcome p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    max-width: 420px;
+    line-height: 1.6;
+  }
+  .welcome .btn-primary { padding: 10px 24px; font-size: 0.9rem; margin-top: 8px; }
+
+  .close-btn {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 4px;
+    line-height: 1;
+  }
+  .close-btn:hover { color: var(--text); }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .feedback-panel { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">Benzo<span>Taper</span>Sim</div>
+    <div class="badge">PGY-3 Training</div>
+  </div>
+  <div class="header-right">
+    <button class="btn" onclick="showFeedback()" id="feedbackBtn" disabled>View Feedback</button>
+    <button class="btn btn-danger" onclick="resetSession()">New Session</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h3>Patient Profile</h3>
+      <div class="patient-card">
+        <div class="patient-name">Maria C.</div>
+        <div class="patient-meta">42 F · Simulated Patient</div>
+        <div class="info-row"><span class="info-label">Current Rx</span><span class="info-value warn">Xanax 1mg TID</span></div>
+        <div class="info-row"><span class="info-label">Duration</span><span class="info-value">~4 years</span></div>
+        <div class="info-row"><span class="info-label">Daily dose</span><span class="info-value warn">3mg alprazolam</span></div>
+        <div class="info-row"><span class="info-label">Indication</span><span class="info-value">GAD / Panic Disorder</span></div>
+        <div class="info-row"><span class="info-label">Prior d/c attempts</span><span class="info-value danger">2 (failed)</span></div>
+        <div class="info-row"><span class="info-label">Alcohol use</span><span class="info-value">Social only</span></div>
+        <div class="info-row"><span class="info-label">Motivation</span><span class="info-value">High — pregnancy planning</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Learning Objectives</h3>
+      <ul class="objectives-list">
+        <li><span class="obj-dot"></span>Assess physiologic dependence vs. addiction</li>
+        <li><span class="obj-dot"></span>Discuss ASAM tapering guidelines (10% rule)</li>
+        <li><span class="obj-dot"></span>Propose diazepam conversion strategy</li>
+        <li><span class="obj-dot"></span>Recognize & manage withdrawal risk</li>
+        <li><span class="obj-dot"></span>Explore psychosocial adjuncts (CBT-I, therapy)</li>
+        <li><span class="obj-dot"></span>Address patient fears & ambivalence</li>
+        <li><span class="obj-dot"></span>Assess safety & set follow-up plan</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Session Score</h3>
+      <div class="score-display">
+        <div class="score-label">Overall</div>
+        <div class="score-num" id="liveScore">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="chat-area">
+    <div class="chat-header">
+      <div class="chat-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Ready to begin</span>
+      </div>
+      <div class="turn-counter" id="turnCounter">0 turns</div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcomeScreen">
+        <div class="welcome-icon">🩺</div>
+        <h2>Benzodiazepine Tapering — Patient Simulation</h2>
+        <p>You are a PGY-3 psychiatry resident. Maria is a 42-year-old patient who has been taking Xanax 1mg three times daily for 4 years and wants to discuss stopping. Conduct the interview as you would in clinic.</p>
+        <p style="font-size:0.75rem; color: var(--accent); margin-top: 4px;">Informed by ASAM Clinical Practice Guidelines for Benzodiazepine Tapering</p>
+        <button class="btn btn-primary" onclick="startSession()">Begin Encounter</button>
+      </div>
+    </div>
+
+    <div class="input-area" id="inputArea" style="display:none;">
+      <div class="input-wrap">
+        <textarea id="userInput" placeholder="Type your response to the patient…" rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">
+        <span>Speak as you would to a real patient</span>
+        <span id="hintRight">Enter to send · Shift+Enter for new line</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="feedback-overlay" id="feedbackOverlay">
+  <div class="feedback-panel">
+    <button class="close-btn" onclick="closeFeedback()">✕</button>
+    <div class="feedback-title">Session Feedback</div>
+    <div class="feedback-subtitle">ASAM-Informed Assessment · Benzodiazepine Tapering Interview</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div id="feedbackContent">
+      <p style="color:var(--text-dim); text-align:center; padding: 40px 0;">Generating feedback…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 👇 ONLY LINE YOU NEED TO CHANGE
+  // Paste your Cloudflare Worker URL here after deploying worker.js
+  const WORKER_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev/chat";
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const PATIENT_SYSTEM = `You are Maria C., a 42-year-old woman simulating a real patient in a psychiatry clinic. You are talking to a PGY-3 psychiatry resident.
+
+BACKGROUND:
+- You have been taking Xanax (alprazolam) 1mg three times a day (morning, afternoon, bedtime) for about 4 years, originally prescribed for generalized anxiety disorder and panic attacks
+- You came in today because you want to try to stop the Xanax — you and your husband are planning to get pregnant within the next year and you've read scary things online about benzos in pregnancy
+- You've tried to stop twice before on your own: first time you cut it in half abruptly and felt terrible (sweating, shaking, couldn't sleep, heart pounding) and went back to full dose after 5 days; second time you tried to cut by one pill a week and also felt awful after 2 weeks
+- You are anxious about withdrawal but highly motivated because of the pregnancy goal
+- You still have baseline anxiety and occasional panic attacks (1-2/week), though milder than before the Xanax
+
+PERSONALITY IN THIS ENCOUNTER:
+- Warm but nervous; you fidget and use filler words occasionally
+- You use lay terms, not medical language
+- You are not sure if you are "addicted" and feel a little defensive if that word is used without explanation; you don't drink much or use other drugs
+- You have questions: How long will this take? Will I feel terrible? Can I still take something for anxiety during the taper?
+- You respond realistically to empathy and become more open when the resident explains things clearly
+- If the resident is dismissive, talks over you, or doesn't explain the plan, you become more worried and guarded
+- You do NOT mention symptoms the resident hasn't asked about yet unless they prompt you
+- Keep responses to 2-5 sentences unless asked a direct question that requires more detail
+- Stay fully in character at all times. Do NOT break character or offer clinical explanations.`;
+
+  const FEEDBACK_SYSTEM = `You are an expert psychiatry education faculty member who specializes in addiction medicine and benzodiazepine tapering. You are evaluating a PGY-3 psychiatry resident's clinical interview skills based on a conversation with a simulated patient (Maria, 42F, on Xanax 1mg TID x4 years, seeking to taper).
+
+Your evaluation is grounded in the ASAM Clinical Practice Guidelines for benzodiazepine tapering, which include:
+1. Assess for physiologic dependence vs addiction (dependence ≠ addiction)
+2. Recommend gradual taper: no more than 10% reduction of current dose per week to every 2 weeks
+3. Consider switching to a longer-acting benzodiazepine (e.g., diazepam) before tapering — convert alprazolam to equivalent diazepam dose and taper diazepam
+4. Alprazolam 3mg/day ≈ diazepam 60mg/day equivalent (alprazolam 0.5mg = diazepam ~10mg)
+5. Taper rate should be individualized; slower taper for longer-duration use
+6. Do not attempt outpatient taper if there is history of seizures or severe withdrawal
+7. Adjunct therapies: CBT, CBT-I, mindfulness, SSRI/SNRI for underlying anxiety
+8. Psychoeducation about physical dependence is essential
+9. Set clear follow-up plan with safety netting (when to call, when to go to ER)
+10. Address ambivalence and patient concerns directly; motivational interviewing principles
+
+Evaluate the resident's conversation on these domains (score each 0-10):
+- Therapeutic alliance & communication
+- Clinical assessment
+- ASAM-aligned tapering knowledge
+- Psychoeducation
+- Safety planning
+- Psychosocial adjuncts
+
+Return a JSON object ONLY (no markdown, no preamble) with this exact structure:
+{
+  "overallScore": 78,
+  "scores": {
+    "therapeuticAlliance": 8,
+    "clinicalAssessment": 7,
+    "taperingKnowledge": 6,
+    "psychoeducation": 8,
+    "safetyPlanning": 5,
+    "psychosocialAdjuncts": 4
+  },
+  "strengths": ["Specific strength with explanation", "Another strength"],
+  "improvements": ["Specific gap with ASAM guideline reference", "Another improvement"],
+  "asamNote": "2-3 sentence ASAM-recommended approach for this specific case",
+  "overallComment": "2-3 sentence holistic comment on performance"
+}`;
+
+  let conversationHistory = [];
+  let turnCount = 0;
+  let sessionActive = false;
+  const MIN_TURNS = 6;
+
+  function startSession() {
+    document.getElementById('welcomeScreen').remove();
+    document.getElementById('inputArea').style.display = 'block';
+    document.getElementById('hintRight').textContent = `Enter to send · Shift+Enter for new line · Feedback after ${MIN_TURNS} turns`;
+    sessionActive = true;
+
+    const opening = "Hi doctor… thanks for seeing me. I've been, um, thinking a lot about this. I really want to try coming off the Xanax. I know I've been on it a long time and — with trying to get pregnant — I just feel like I need to do this. I'm a little nervous to talk about it, honestly.";
+    addMessage('patient', opening);
+    conversationHistory.push({ role: 'assistant', content: opening });
+
+    updateUI();
+    document.getElementById('userInput').focus();
+  }
+
+  function updateUI() {
+    document.getElementById('turnCounter').textContent = `${turnCount} turn${turnCount !== 1 ? 's' : ''}`;
+    if (turnCount >= MIN_TURNS) {
+      document.getElementById('feedbackBtn').disabled = false;
+      document.getElementById('hintRight').textContent = 'Enter to send · Feedback available!';
+    }
+  }
+
+  function addMessage(role, text) {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    const labels = { patient: 'Patient — Maria', resident: 'Resident (You)', system: 'System' };
+    div.innerHTML = `<div class="msg-label">${labels[role]}</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function addTypingIndicator() {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message patient';
+    div.id = 'typingIndicator';
+    div.innerHTML = `<div class="msg-label">Patient — Maria</div>
+      <div class="typing-indicator">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+
+  function setInputEnabled(enabled) {
+    document.getElementById('userInput').disabled = !enabled;
+    document.getElementById('sendBtn').disabled = !enabled;
+    document.getElementById('statusText').textContent = enabled ? 'Patient is ready' : 'Maria is responding…';
+    document.getElementById('statusDot').style.background = enabled ? 'var(--success)' : 'var(--warn)';
+  }
+
+  async function callWorker(payload) {
+    const response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return response.json();
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const text = input.value.trim();
+    if (!text || !sessionActive) return;
+
+    input.value = '';
+    autoResize(input);
+    turnCount++;
+
+    addMessage('resident', text);
+    conversationHistory.push({ role: 'user', content: text });
+
+    setInputEnabled(false);
+    addTypingIndicator();
+
+    try {
+      const data = await callWorker({
+        system: PATIENT_SYSTEM,
+        messages: conversationHistory
+      });
+
+      removeTypingIndicator();
+
+      if (data.content?.[0]?.text) {
+        const reply = data.content[0].text;
+        addMessage('patient', reply);
+        conversationHistory.push({ role: 'assistant', content: reply });
+      } else {
+        addMessage('system', 'Error: ' + (data.error?.message || 'No response from AI'));
+      }
+    } catch (err) {
+      removeTypingIndicator();
+      addMessage('system', 'Connection error — check that your Worker URL is set correctly.');
+    }
+
+    updateUI();
+    setInputEnabled(true);
+    document.getElementById('userInput').focus();
+  }
+
+  async function showFeedback() {
+    document.getElementById('feedbackOverlay').classList.add('show');
+    document.getElementById('feedbackContent').innerHTML =
+      '<p style="color:var(--text-dim); text-align:center; padding:40px 0; font-style:italic;">Analyzing your interview…</p>';
+    document.getElementById('progressFill').style.width = '40%';
+
+    const transcript = conversationHistory.map(m =>
+      `${m.role === 'user' ? 'RESIDENT' : 'PATIENT'}: ${m.content}`
+    ).join('\n\n');
+
+    try {
+      const data = await callWorker({
+        system: FEEDBACK_SYSTEM,
+        messages: [{ role: 'user', content: `Please evaluate this clinical interview transcript:\n\n${transcript}` }]
+      });
+
+      document.getElementById('progressFill').style.width = '100%';
+
+      let raw = data.content?.[0]?.text || '';
+      raw = raw.replace(/```json|```/g, '').trim();
+
+      let fb;
+      try { fb = JSON.parse(raw); }
+      catch {
+        document.getElementById('feedbackContent').innerHTML =
+          `<p style="color:var(--danger)">Could not parse feedback.</p><pre style="font-size:0.75rem;color:var(--text-dim);white-space:pre-wrap;">${escapeHtml(raw)}</pre>`;
+        return;
+      }
+
+      document.getElementById('liveScore').textContent = fb.overallScore;
+      renderFeedback(fb);
+    } catch (err) {
+      document.getElementById('feedbackContent').innerHTML =
+        `<p style="color:var(--danger)">Error: ${err.message}</p>`;
+    }
+  }
+
+  function scoreClass(n) {
+    if (n >= 8) return 'excellent';
+    if (n >= 6) return 'good';
+    if (n >= 4) return 'fair';
+    return 'poor';
+  }
+
+  function renderFeedback(fb) {
+    const labels = {
+      therapeuticAlliance: 'Therapeutic Alliance',
+      clinicalAssessment: 'Clinical Assessment',
+      taperingKnowledge: 'ASAM Tapering Knowledge',
+      psychoeducation: 'Psychoeducation',
+      safetyPlanning: 'Safety Planning',
+      psychosocialAdjuncts: 'Psychosocial Adjuncts'
+    };
+
+    const cards = Object.entries(fb.scores).map(([k, v]) => `
+      <div class="score-card">
+        <div class="score-card-label">${labels[k] || k}</div>
+        <div class="score-card-value ${scoreClass(v)}">${v}<span style="font-size:0.9rem;color:var(--text-dim)">/10</span></div>
+      </div>`).join('');
+
+    const strengths = (fb.strengths || []).map(s =>
+      `<div class="feedback-item"><span class="feedback-item-icon">✅</span><span class="feedback-text">${escapeHtml(s)}</span></div>`
+    ).join('');
+
+    const improvements = (fb.improvements || []).map(s =>
+      `<div class="feedback-item"><span class="feedback-item-icon">⚠️</span><span class="feedback-text">${escapeHtml(s)}</span></div>`
+    ).join('');
+
+    document.getElementById('feedbackContent').innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;">
+        <span class="${scoreClass(fb.overallScore/10)} score-card-value" style="font-size:3rem;">${fb.overallScore}</span>
+        <span style="color:var(--text-dim);font-size:0.85rem;">/ 100 overall</span>
+      </div>
+      <div class="score-grid">${cards}</div>
+      <div class="feedback-section">
+        <h4>Strengths</h4>
+        ${strengths || '<p style="color:var(--text-dim);font-size:0.82rem;">Conduct a longer interview for detailed strengths.</p>'}
+      </div>
+      <div class="feedback-section">
+        <h4>Areas for Improvement</h4>
+        ${improvements || '<p style="color:var(--text-dim);font-size:0.82rem;">No gaps identified.</p>'}
+      </div>
+      <div class="feedback-section">
+        <h4>ASAM Guideline Reference — This Case</h4>
+        <div class="asam-box">${escapeHtml(fb.asamNote || '')}</div>
+      </div>
+      <div class="feedback-section">
+        <h4>Overall Assessment</h4>
+        <p style="font-size:0.85rem;line-height:1.7;color:var(--text);">${escapeHtml(fb.overallComment || '')}</p>
+      </div>
+      <div class="feedback-actions">
+        <button class="btn" onclick="closeFeedback()">Continue Session</button>
+        <button class="btn btn-primary" onclick="closeFeedback();resetSession()">New Session</button>
+      </div>`;
+  }
+
+  function closeFeedback() {
+    document.getElementById('feedbackOverlay').classList.remove('show');
+  }
+
+  function resetSession() {
+    conversationHistory = [];
+    turnCount = 0;
+    sessionActive = false;
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('inputArea').style.display = 'none';
+    document.getElementById('feedbackBtn').disabled = true;
+    document.getElementById('liveScore').textContent = '—';
+    document.getElementById('turnCounter').textContent = '0 turns';
+    document.getElementById('statusText').textContent = 'Ready to begin';
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('statusDot').style.background = 'var(--success)';
+    closeFeedback();
+
+    const welcome = document.createElement('div');
+    welcome.className = 'welcome';
+    welcome.id = 'welcomeScreen';
+    welcome.innerHTML = `
+      <div class="welcome-icon">🩺</div>
+      <h2>Benzodiazepine Tapering — Patient Simulation</h2>
+      <p>You are a PGY-3 psychiatry resident. Maria is a 42-year-old patient who has been taking Xanax 1mg three times daily for 4 years and wants to discuss stopping. Conduct the interview as you would in clinic.</p>
+      <p style="font-size:0.75rem;color:var(--accent);margin-top:4px;">Informed by ASAM Clinical Practice Guidelines for Benzodiazepine Tapering</p>
+      <button class="btn btn-primary" onclick="startSession()">Begin Encounter</button>`;
+    document.getElementById('messages').appendChild(welcome);
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>
